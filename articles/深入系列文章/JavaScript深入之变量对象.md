@@ -235,5 +235,69 @@ var foo = 1;
 JavaScript深入系列目录地址：[https://github.com/mqyqingfeng/Blog](https://github.com/mqyqingfeng/Blog)。
 
 JavaScript深入系列预计写十五篇左右，旨在帮大家捋顺JavaScript底层知识，重点讲解如原型、作用域、执行上下文、变量对象、this、闭包、按值传递、call、apply、bind、new、继承等难点概念。
+*****
+# 自己补充 2017.11.24
 
-如果有错误或者不严谨的地方，请务必给予指正，十分感谢。如果喜欢或者有所启发，欢迎star，对作者也是一种鼓励。
+执行流在执行环境中的执行过程（执行环境的生命周期）：  
+
+* 建立arguments对象。检查当前上下文中的参数，建立该对象下的属性与属性值。  
+  
+* 检查当前上下文的函数声明，也就是使用function关键字声明的函数。在变量对象中以函数名建立一个属性，属性值为指向该函数所在内存地址的引用。`如果函数名的属性已经存在，那么该属性将会被新的引用所覆盖`。  
+  
+* 检查当前上下文中的变量声明，每找到一个变量声明，就在变量对象中以变量名建立一个属性，属性值为undefined。`如果该变量名的属性已经存在，为了防止同名的函数被修改为undefined，则会直接跳过，原属性值不会被修改`。   
+  
+总之：`function声明会比var声明优先级更高一点`   
+
+下面通过具体的例子来看变量对象：
+```
+function test(){
+   console.log(a);
+   console.log(foo());
+   
+   var a= 1;
+   function foo(){
+      return 2;
+   }
+}
+test();
+```
+当执行到text()时会生成执行环境textEC，具体形式如下：
+```
+// 创建过程
+textEC = {
+ VO: {},             // 变量对象（variable object）
+ scopeChain: [],    // 作用域链
+ this: {}          // this指向
+}
+```
+仅针对变量对象来具体展开：
+```
+VO = {
+   argument: {},             // 传参对象
+   foo: "<foo reference>",  // 在testEC中定义的function
+   a: undefined            // 在textEC中定义的var
+}
+```
+`未进入执行阶段之前，变量对象中的属性都不能访问！但是进入执行阶段之后，变量对象转变为了活动对象，里面的属性都能被访问了，然后开始进行执行阶段的操作`
+```
+VO --> AO   // 执行阶段 Active Object
+AO = {
+   argument: {...},
+   foo: function(){return 2},
+   a: 1
+}
+```
+最后我们将变量对象创建时的VO和执行阶段的AO整合到一起就可以得到整个执行环境中代码的执行顺序：
+```
+function text(){
+   function foo(){
+     return 2;
+   }
+   var a;
+   console.log(a);
+   console.log(foo());
+   a = 1;
+}
+text();
+```
+这个就是分步变量对象的创建和执行阶段来解读`预解析`  
